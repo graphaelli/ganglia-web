@@ -32,7 +32,6 @@ if (isset($_GET['x']) || isset($_GET['n'])) {
         $command .= " --lower-limit '0'";
 }
 
-$c = 0;
 $total_cmd = " CDEF:'total'=0";
 
 # We'll get the list of hosts from here
@@ -41,7 +40,12 @@ retrieve_metrics_cache();
 unset($hosts);
 
 foreach($index_array['cluster'] as $host => $cluster ) {
-    
+    // skip sources that don't exist
+    $filename = $conf['rrds'] . "/$clustername/$host/$metricname.rrd";
+    if (! file_exists($filename)) {
+        continue;
+    }
+
     // Check cluster name
     if ( $cluster == $clustername ) {
         // If host regex is specified make sure it matches
@@ -54,13 +58,14 @@ foreach($index_array['cluster'] as $host => $cluster ) {
     }
 }
 
+usort($hosts, "strnatcmp");
+
+$c = 0;
 foreach ( $hosts as $index => $host ) {
-        $filename = $conf['rrds'] . "/$clustername/$host/$metricname.rrd";
-        if (file_exists($filename)) {
-            $c++;
-            $command .= " DEF:'a$c'='$filename':'sum':AVERAGE";
-            $total_cmd .= ",a$c,+";
-        }
+    $c++;
+    $filename = $conf['rrds'] . "/$clustername/$host/$metricname.rrd";
+    $command .= " DEF:'a$c'='$filename':'sum':AVERAGE";
+    $total_cmd .= ",a$c,+";
 }
     
 $mean_cmd = " CDEF:'mean'=total,$c,/";
